@@ -1,5 +1,6 @@
 ﻿//1: Recursion on natural numbers
 
+open System
 open Microsoft.FSharp.Core
 
 type Peano =
@@ -181,9 +182,11 @@ argument you should evaluate a function call of the tail-recursive function, sim
 Chapter 1.4 of HR, and reason about that evaluation. You need to make clear what aspects of the
 evaluation tell you that the funciton is tail recursive
 
-A: It is f which is tail recursive. Lets consider the call
+A: f is tail recursive. Consider the call
 
 f 1 [2;3;1]
+
+f (  
 
 let rec f x =
     function
@@ -193,10 +196,6 @@ let rec f x =
         match f x ys with
         | Some ys' -> Some (y::ys')
         | None     -> None
-        
-f 1 [3;1]
-
-    None(None(Some([2;3))
     
 
 Q: Create a tail-recursive version of f or g , whichever was not already tail recursive, using continuations.
@@ -206,20 +205,54 @@ The function should be called fTail or gTail depending on which one you implemen
 
 *)
 
-let fTail x xs =
-    let rec aux acc xs' =
-        match xs' with
-        | []                -> Some acc
-        | y::ys when x = y  -> Some ys
-        | y::ys when x <> y -> 
+let rec f4 x =
+    function
+    | []                -> None
+    | y::ys when x = y  -> Some ys
+    | y::ys -> 
         match f x ys with
-        | Some ys' -> aux (Some (y::acc)) ys' 
+        | Some ys' -> Some (y::ys')
         | None     -> None
-    aux [] xs
+
+let fTail x xs =
+    let rec aux c xs' =
+        match xs' with
+        | []                -> c None
+        | y::ys when x = y  -> c (Some ys)
+        | y::ys -> aux (fun result ->
+            match result with
+            | None -> None
+            | Some xs -> c(Some(y :: xs))) ys
+    aux id xs
     
         
 //3 Sequences of PI
 
+//3.1
+let rec calculatePi (x: uint64) =
+    let element (x: uint64) = decimal 4/decimal(2UL * x * (2UL * x + 1UL) * (2UL * x + 2UL))
+    match x with
+    | 0UL -> 3.0M
+    | n when n % 2UL = 0UL -> calculatePi (n-1UL) - (element n)
+    | n -> calculatePi (n-1UL) + (element n)
+
+//3.2
+let piSeq = Seq.unfold(fun state -> Some(calculatePi state, state+1UL) ) 0UL
+
+//3.3
+
+let circleArea (r: float) = Seq.map(fun elem -> elem * (decimal r * decimal r) ) piSeq
+
+let sphereVolume (r: float) = Seq.map(fun elem -> (4M/3M) * elem * decimal(r**3.0)) piSeq
+
+//3.4
+
+let circleSphere1 (r:float) = seq {
+    for pi in piSeq do yield (pi * (decimal r * decimal r) ,(4M/3M) * pi * decimal(r**3.0))
+}
+
+let circleSphere2 (r: float) = Seq.zip (circleArea r) (sphereVolume r)
+  
 
 //4 Programmable Typewriters
 
