@@ -16,7 +16,7 @@ let test2 = 3u
 let rec toInt (a: Peano) =
     match a with
     | O -> 0u
-    | S(x) -> toInt x + 1u
+    | S(x) -> (toInt x) + 1u
 
 let rec fromInt (x: uint32) =
     match x with
@@ -43,25 +43,25 @@ let rec pow (a: Peano) (b: Peano) =
 //1.3
 
 let tailAdd (a: Peano) (b: Peano) =
-    let rec aux acc p =
-        match p with
+    let rec aux acc b' =
+        match b' with
         | O -> acc
         | S(x) -> aux (S(acc)) x
     aux a b
 
 let tailMult (a: Peano) (b: Peano) =
-    let rec aux acc p =
-        match p with
-        |O -> acc
-        |S(x) -> aux (tailAdd a acc) x 
+    let rec aux acc b' =
+        match b' with
+        | O -> acc
+        | S(x) -> aux (tailAdd acc a) x
     aux O b
     
 let tailPow (a: Peano) (b: Peano) =
-    let rec aux acc p =
-        match p with
-        |O -> acc
-        |S(x) -> aux (tailMult a acc) x
-    aux (S O) b
+    let rec aux acc b' =
+        match b' with
+        | O -> acc
+        | S(x) -> aux (tailMult acc a) x
+    aux (S(O)) b
     
 //1.4
 let rec loop f acc (p: Peano) =
@@ -70,14 +70,14 @@ let rec loop f acc (p: Peano) =
     | S(x) -> loop f (f acc) x
     
 //1.5
-let rec loopAdd (p1: Peano) (p2: Peano) =
-    loop (fun acc -> S(acc)) p1 p2
+let loopAdd (a: Peano) (b: Peano) =
+    loop(fun p -> S(p)) a b
     
-let rec loopMult (p1: Peano) (p2: Peano) =
-    loop (fun acc -> loopAdd p1 acc) O p2
-
-let rec loopPow (p1: Peano) (p2: Peano) =
-    loop (fun acc -> loopMult p1 acc) (S O) p2
+let loopMult (a: Peano) (b: Peano) =
+    loop(tailAdd a) O b
+    
+let loopPow (a: Peano) (b: Peano) =
+    loop(tailMult a) (S(O)) b
     
     
 //2: Code Comprehension
@@ -101,40 +101,29 @@ let rec g xs =
 
 //2.1
 
-(*
- Q: What are the types of functions f and g ?
- 
- A: f has type 'a -> 'a list -> 'a list option
-    g has type 'a list -> 'a list -> bool
+What are the types of functions f and g? 
+    f: 'a -> 'a list -> 'a list option 
+    g: 'a list -> 'a list -> bool
+What do functions f and g do? Focus on what they do rather than how they do it.
+    f x xs returns Some xs' where xs' is xs with the first occurrence of x removed.
+          If x is not in xs, it returns None
+    g xs ys returns true if ys is a permutation of xs, else false.
     
- Q: What do functions f and g do? Focus on what they do rather than how they do it.
- 
- A: f takes an element and a list, and if that element exists in the list it returns the list without the first occurence of the element.
-    if the element does not exist it returns None
-    
-    g takes two list and return true if they are the same list, false if they are not
-    
- Q: What would be appropriate names for functions f and g ?
- 
- A: f can be named removeSingle
- 
-    g can be named listEquality
-    
-*)
+What would be appropriate names for functions f and g ?
 
-
+    g: containsSameElements or isPermutation
+    
 //2.2
 
-// The function f generates a warning during compilation: warning FS0025: Incomplete pattern matches on this expression.
+The function f generates a warning during compilation: warning FS0025: Incomplete pattern matches on this expression..
 
-(*
-    Q: Why does this happen, and where?
-    
-    A: It happens at the y::ys when x <> y . We need to remove the when condition to fix it.
-    
-    Q: Write a function f2 that does the same thing as f and that does not have this problem.
-    
-    A:
+Why does this happen, and where?
+
+This happens at the match statement. It happens because the compiler is not smart enough to know that either y::ys when x = y and y::ys when x <> y must be true.
+So it tells us that we might not match all cases
+
+Write a function f2 that does the same thing as f and that does not have this problem.
+
 *)
 
 let rec f2 x =
@@ -145,85 +134,60 @@ let rec f2 x =
         match f2 x ys with
         | Some ys' -> Some (y::ys')
         | None     -> None
-
-//2.3
+ 
+//2.3       
 (*
-    Both functions f and g contain matches on option types in their last clause. These can be removed
-    and the program streamlined by using Option.map and/or Option.defaultValue.
-    
-    Create two functions fOpt and gOpt that behave the same as f and g respectively but with their
-    match-statements replaced by shorter code that uses the library functions mentioned above. If you are
-    unclear on what the library functions do, then look them up
-    
-    A:
+
+Both functions f and g contain matches on option types in their last clause. These can be removed and the program streamlined by using Option.map and/or Option.defaultValue.
+
+Create two functions fOpt and gOpt that behave the same as f and g respectively but with their match-statements replaced by shorter code that uses the library functions mentioned above. If you are unclear on what the library functions do, then look them up.
 *)
 
 let rec fOpt x =
     function
     | []                -> None
     | y::ys when x = y  -> Some ys
-    | y::ys when x <> y -> 
-        f x ys
-        |> Option.map(fun ys' -> y :: ys')
-        
+    | y::ys -> fOpt x ys
+               |> Option.map (fun ys' -> y :: ys')
 let rec gOpt xs =
     function
     | []    -> xs = []
-    | y::ys -> 
-         f y xs
-         |> Option.map(fun xs' -> gOpt xs' ys)
-         |> Option.defaultValue false
-        
+    | y::ys -> fOpt y xs
+               |> Option.map (fun xs' -> gOpt xs' ys)
+               |> Option.defaultValue false
+
 //2.4
 
 (*
-Q: Only one of the functions f and g is tail-recursive. Which one and why? To make a compelling
-argument you should evaluate a function call of the tail-recursive function, similarly to what is done in
-Chapter 1.4 of HR, and reason about that evaluation. You need to make clear what aspects of the
-evaluation tell you that the funciton is tail recursive
-
-A: f is tail recursive. Consider the call
-
-f 1 [2;3;1]
-
-f (  
-
-let rec f x =
-    function
-    | []                -> None
-    | y::ys when x = y  -> Some ys
-    | y::ys when x <> y -> 
-        match f x ys with
-        | Some ys' -> Some (y::ys')
-        | None     -> None
-    
-
-Q: Create a tail-recursive version of f or g , whichever was not already tail recursive, using continuations.
-The function should be called fTail or gTail depending on which one you implement
-
-
-
+ It is g which is tail recursive. 
+ This is because g calls itself as the last thing 
+ on every Some outcome of the recursive call.
+ 
+ I will now try to further convince you by evaluating a call of the function g
+ 
+ g [1;2;3] [3;2;1] ->
+ 
+ g [1;2] [2;1] ->
+ 
+ g [1] [1] -> 
+ 
+ g [] [] -> 
+ 
+ true
+ 
 *)
 
-let rec f4 x =
-    function
-    | []                -> None
-    | y::ys when x = y  -> Some ys
-    | y::ys -> 
-        match f x ys with
-        | Some ys' -> Some (y::ys')
-        | None     -> None
-
 let fTail x xs =
-    let rec aux c xs' =
+    let rec aux cont xs' =
         match xs' with
-        | []                -> c None
-        | y::ys when x = y  -> c (Some ys)
-        | y::ys -> aux (fun result ->
+        | [] -> cont None
+        | y :: ys when x = y -> cont (Some ys)
+        | y :: ys -> aux(fun result ->
             match result with
             | None -> None
-            | Some xs -> c(Some(y :: xs))) ys
+            | Some xs -> cont(Some(y :: xs))) ys
     aux id xs
+    
     
         
 //3 Sequences of PI
