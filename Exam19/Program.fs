@@ -101,6 +101,8 @@ let rec g xs =
 
 //2.1
 
+(*
+
 What are the types of functions f and g? 
     f: 'a -> 'a list -> 'a list option 
     g: 'a list -> 'a list -> bool
